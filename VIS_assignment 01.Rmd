@@ -101,6 +101,9 @@ all_data_01 <- inner_join(data_commute, data_income, by="geoid")
 all_data <- inner_join(all_data_01, data_race, by="geoid")
 knitr::kable(all_data[1:10,])
 ```
+```{r}
+unique(all_data$majority_race)
+```
 
 # Plot 1
 Plotting a majority of my variables
@@ -109,8 +112,8 @@ ggplot(all_data,
        aes(x= population, 
            y= pct_car, 
            size = pct_pub_trans, 
-           color = rich_foreign,
-           shape = majority_race)) +
+           color = majority_race,
+           shape = rich_foreign)) +
   geom_point() +
   scale_x_continuous(name = "Tract population") + 
   scale_y_continuous(name = "Percentage of car commuter",
@@ -118,9 +121,9 @@ ggplot(all_data,
                      labels = paste(seq(0,100,by=10), "%", sep=""))+
   scale_size_continuous(name ="Percentage of public transportation commuter") +
   scale_color_discrete(name = "Majority race",
-                       labels = c("White", 
+                       labels = c("No Majority", 
                                   "Asian", 
-                                  "No Majority"))+
+                                  "White"))+
   scale_shape(name = element_blank(),
               labels = c("Foreign residents earn more", "Foreign residents earn less")) +
   theme_light() +
