@@ -1,0 +1,282 @@
+---
+title: "VIS_assignment 01"
+author: "Mengyao"
+date: "2020/9/11"
+output:   
+  html_document:
+    theme: lumen
+    toc: true
+    toc_float: true
+
+---
+
+# Load packages
+```{r, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+```
+
+# Load data
+As I had connection issue to get data directly from census, I tried to download three tables from the website and combined them.
+I downloaded 1 zippd file named Means of transportation to work by class of workers.zip from data.census.gov. The zipped file contains three files:
+
+1. The dataset (Means of transportation to work by class of workers_data.csv)
+2. A list of variable names and descriptions (Means of transportation to work by class of workers_var.csv)
+3. A description of the data source (Means of transportation to work by class of workers_data.txt)
+
+```{r, results='hide'}
+unzip("Means of transportation to work by class of workers.zip")
+tran_variables <- read.csv("Means of transportation to work by class of workers_var.csv")
+tran_data <- read.csv("Means of transportation to work by class of workers_data.csv", skip =1)
+colnames(tran_data)
+```
+
+# Choosing variables
+The table is based on 5-year American Community Survey of tracts in Middlesex County, Massachusetts in 2018.
+I want these variables from the table:
+1. The population of the tract (Continuous)
+2. The percentage of people who use car to commute (Continuous)
+3. The percentage of people who walk or use public transportation to commute (Continuous)
+```{r, results='hide'}
+
+data_commute <- tran_data %>%
+  mutate(population =`Estimate..Total`,
+         pct_car = `Estimate..Total..Car..truck..or.van...drove.alone`/`Estimate..Total`,
+         pct_pub_trans = `Estimate..Total..Public.transportation..excluding.taxicab.`/`Estimate..Total`)%>%
+  mutate(geoid = substr(id, 10, 20)) %>%
+  select(geoid, population, pct_car, pct_pub_trans)
+data_commute
+  
+```
+
+# Load the 2nd dataset about income
+
+```{r, results='hide'}
+unzip("Income.zip")
+income_variables <- read.csv("income_vars.csv")
+income_data <- read.csv("income_data.csv", skip =1)
+colnames(tran_data)
+```
+The table is based on 5-year American Community Survey of tracts in Middlesex County, Massachusetts in 2018.
+I want these variables from the table:
+1. Whether foreign residents are richer (Categorical)
+2. The median income (Continuous)
+```{r, results='hide'}
+data_income <- income_data %>%
+  mutate(median_income = `Estimate..Median.income.in.the.past.12.months.....Total`,
+         rich_foreign = `Estimate..Median.income.in.the.past.12.months.....Total..Foreign.born` > `Estimate..Median.income.in.the.past.12.months.....Total..Born.in.state.of.residence`)%>%
+  mutate(geoid = substr(id, 10, 20)) %>%
+  select(geoid, median_income, rich_foreign)
+data_income
+```
+
+# Load the 3rd dataset about race
+
+```{r, results='hide'}
+unzip("Race.zip")
+race_variables <- read.csv("race_vars.csv")
+race_data <- read.csv("race_data.csv", skip =1)
+colnames(race_data)
+```
+The table is based on 5-year American Community Survey of tracts in Middlesex County, Massachusetts in 2018.
+I want this variable from the table:
+1. The majority race of the tract (Categorical)
+```{r, results='hide'}
+data_race <- race_data %>%
+  mutate(majority_race = case_when(
+    `Estimate..Total..White.alone`/`Estimate..Total` > 0.5 ~ "white",
+    `Estimate..Total..Black.or.African.American.alone`/`Estimate..Total` > 0.5 ~ "black",
+    `Estimate..Total..Asian.alone`/`Estimate..Total` >0.5 ~ "asian",
+    (`Estimate..Total..White.alone`/`Estimate..Total`+`Estimate..Total..Black.or.African.American.alone`+`Estimate..Total..Asian.alone`+`Estimate..Total..White.alone`)/`Estimate..Total` < 0.5 ~ "other", TRUE ~ "None"))%>%
+  mutate(geoid = substr(id, 10, 20)) %>%
+  select(geoid, majority_race)
+data_race
+```
+
+# Join data
+This dataset includes 318 tracts. The first ten rows are presented here as a formatted table.
+```{r}
+all_data_01 <- inner_join(data_commute, data_income, by="geoid")
+all_data <- inner_join(all_data_01, data_race, by="geoid")
+knitr::kable(all_data[1:10,])
+```
+
+# Plot 1
+Plotting a majority of my variables
+```{r}
+ggplot(all_data,
+       aes(x= population, 
+           y= pct_car, 
+           size = pct_pub_trans, 
+           color = rich_foreign,
+           shape = majority_race)) +
+  geom_point() +
+  scale_x_continuous(name = "Tract population") + 
+  scale_y_continuous(name = "Percentage of car commuter",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100,by=10), "%", sep=""))+
+  scale_size_continuous(name ="Percentage of public transportation commuter") +
+  scale_color_discrete(name = "Majority race",
+                       labels = c("White", 
+                                  "Asian", 
+                                  "No Majority"))+
+  scale_shape(name = element_blank(),
+              labels = c("Foreign residents earn more", "Foreign residents earn less")) +
+  theme_light() +
+  theme(legend.key.size = unit(0.1, "cm"))
+
+```
+
+# Plot 2
+Percentage of people using car for commute and median income
+```{r}
+ggplot(all_data,
+       aes(x=pct_car,
+           y=median_income)) +
+  geom_point() +
+  scale_x_continuous(name = "Percentage of people using car for commuting",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100, by=10), "%", sep = ""))+
+  scale_y_discrete(name = "Median income",
+                   breaks = seq(10000, 110000, by=10000)) +
+  theme_light()
+```
+
+# Plot 3
+Majority race and percentage of people using public transportation for commute
+```{r}
+ggplot(all_data, 
+       aes(x=majority_race,
+           y=pct_pub_trans,
+           fill= majority_race)) +
+  geom_dotplot(binaxis = "y", dotsize = 0.5) +
+  scale_x_discrete(name ="Majority race",
+                   labels = c("No Majority", "Asian", "White")) +
+  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100,by=10), "%", sep="")) +
+  labs(fill = "Majority race") +
+  scale_fill_discrete(name = "Majority race",
+                      breaks = c("No Majority", "Asian", "White")) +
+  theme_minimal()
+```
+
+# Plot 4
+Heat map of richer foreigners, majority race and percentage of car commuters
+```{r}
+ggplot(all_data,
+       aes(x = majority_race,
+           y = rich_foreign,
+           fill = pct_car)) +
+  geom_tile() +
+  scale_x_discrete(name ="Majority race",
+                   labels = c("No Majority", "Asian", "White")) +
+  scale_y_discrete(name = "Foreigners are richer",
+                   labels = c("True", "False")) +
+  scale_fill_distiller(palette = "RdPu") +
+  labs(fill = "Percentage of car commuters") +
+  theme_classic()
+```
+
+# Plot 5
+Scatter plot of percentage of car commuters and public transportation commuters
+```{r}
+ggplot(all_data,
+       aes(x = pct_car,
+           y = pct_pub_trans,
+           size = population)) +
+  geom_point (alpha = 0.5, shape = 21, color = "black") +
+  scale_x_continuous(name = "Percentage of people using car for commuting",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100, by=10), "%", sep = ""))+
+  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100,by=10), "%", sep="")) +
+  theme_minimal()
+```
+
+# Plot 6
+Violin Plot of percentage of public transportation user and majority race
+```{r}
+ggplot(all_data,
+       aes(x = majority_race,
+           y = pct_pub_trans,
+           fill = majority_race)) +
+  geom_violin(width = 2.1, size = 0.2, alpha = 0.75) +
+  scale_x_discrete(name ="Majority race",
+                   labels = c("No Majority", "Asian", "White")) +
+  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100,by=10), "%", sep="")) +
+  theme_minimal()
+```
+
+# Plot 7
+Box plot of percentage of public transportation user and whether foreigner is richer
+```{r}
+ggplot(all_data,
+      aes(x = rich_foreign,
+          y = pct_pub_trans,
+          fill = rich_foreign)) +
+  geom_boxplot() + 
+  scale_x_discrete(name = "Foreigners are richer",
+                   labels = c("True", "False")) +
+  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100,by=10), "%", sep="")) +
+  geom_jitter(color = "blue", size = 0.4, alpha = 0.9) +
+  theme_light()
+```
+
+# Plot 8
+Area chart of percentage of residents that use car to commute
+```{r}
+ggplot(all_data,
+       aes(x = pct_car)) +
+  geom_density(fill = "#b31049", alpha = 0.8) +
+  scale_x_continuous(name = "Percentage of people using car for commuting",
+                     breaks = seq(0,1,by=0.1),
+                     labels = paste(seq(0,100, by=10), "%", sep = ""))+
+  theme_light()
+```
+
+# Plot 9
+Majority race and median income
+```{r}
+ggplot(all_data,
+       aes(x = median_income,
+           y = majority_race)) +
+  geom_point() +
+  geom_segment(aes(x=0, 
+                   xend = median_income, 
+                   y = majority_race, 
+                   yend = majority_race)) +
+  scale_x_discrete(name = "Median income",
+                     breaks = seq(10000, 110000, by=10000)) +
+  scale_y_discrete(name ="Majority race",
+                   labels = c("No Majority", "Asian", "White")) +
+  theme_minimal()
+```
+
+# Plot 10
+Stacked bar chart of majority race and population
+```{r}
+ggplot(all_data,
+       aes(x = majority_race,
+           y = population,
+           fill = majority_race)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  scale_x_discrete(name ="Majority race",
+                   labels = c("No Majority", "Asian", "White")) +
+  scale_y_continuous(name = "Population") +
+  theme_bw()
+```
+
+
+
+
+
+
+
+
