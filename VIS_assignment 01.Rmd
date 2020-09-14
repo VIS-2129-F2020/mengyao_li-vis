@@ -9,6 +9,7 @@ output:
     toc_float: true
 
 ---
+I would like to thank Taelor for making such a great example posted on Github.
 
 # Load packages
 ```{r, message=FALSE}
@@ -18,7 +19,8 @@ library(knitr)
 ```
 
 # Load data
-As I had connection issue to get data directly from census, I tried to download three tables from the website and combined them.
+As I had connection issue to get data directly from census, I tried to download three tables from the website and combined them. My analysis is based on 5-year American Community Survey of tracts in Middlesex County, Massachusetts in 2018.
+
 I downloaded 1 zippd file named Means of transportation to work by class of workers.zip from data.census.gov. The zipped file contains three files:
 
 1. The dataset (Means of transportation to work by class of workers_data.csv)
