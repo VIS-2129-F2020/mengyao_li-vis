@@ -33,7 +33,7 @@ world_map_02
 ```
 
 # Provinces in China
-Seeing that Taiwan is not included in this map, I believe that politics are involved in maps.
+As I was born and raised in mainland China, all maps I saw treated Taiwan as a province of China. It is weird to see that Taiwan is not included in this map. I believe that politics are involved in maps.
 ```{r, message=FALSE}
 devtools::install_github("ropensci/rnaturalearthhires")
 ```
@@ -54,7 +54,8 @@ china_map +
   annotation_scale()
 ```
 
-Finding three coordinate reference systems for China.
+Finding three coordinate reference systems for China. 
+As there are very limited coordinate reference systems for China available on the spatial reference website, I tried to use Korea and India, which are adjacent countries, to present more noticeable change of projections. 
 ```{r}
 china_albers <- "+proj=aea +ellps=krass +lon_0=105 +lat_1=25 +lat_2=47 105 36 0.00 3847866.97 104d36'54 36d25'9 -33897.90 3895309.74 104d25'36.9E 36d52'41N -50158.40 3947261.73"
 korea <- "+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=500000 +ellps=GRS80 +units=m +no_defs"
@@ -63,7 +64,7 @@ india <- "+proj=aea +lat_1=28 +lat_2=12 +lat_0=20 +lon_0=78 +x_0=2000000 +y_0=20
 
 How China looks in each of these three projections:
 
-1. China_albers
+1. china_albers
 ```{r}
 china_map +
   geom_sf() +
@@ -98,7 +99,7 @@ ggplot(provinces_transformed) +
 ```
 
 # Joining data
-I have made a file with province-level data on COVID-19 cases based on statistics of China's National Health Commission. I can join it with my china_province dataframe.
+I have made a file with province-level data on COVID-19 cases based on China's National Health Commission statistics. I have joined it with my china_province dataframe.
 ```{r, message=FALSE}
 covid_china <- read_csv("covid19_china.csv")
 covid_provinces <- provinces_transformed %>%
@@ -107,7 +108,8 @@ covid_provinces <- provinces_transformed %>%
   select(name, cases, population)
 ```
 
-# Chloropleth map
+# Choropleth map
+I have applied a logarithm scale since the differences of cases between provinces are quite big. Most cases (Over 60,000) were located in Hubei Province. Using a normal scale will have all other provinces presented in dark blue. 
 ```{r}
 ggplot(covid_provinces,
        aes(fill = cases)) +
@@ -115,8 +117,8 @@ ggplot(covid_provinces,
   scale_fill_viridis_c(
     name = "Number of \naccumulated\nCOVID-19\ncases till\nSept 18, 2020",
     trans = "log",
-    breaks = c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
-    labels = formatC(c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
+    breaks = c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
+    labels = formatC(c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
                      big.mark = ",", format = "f", digits = 0)) +
   theme_economist() +
   theme(legend.background = element_blank(),
@@ -139,8 +141,8 @@ ggplot(covid_cartogram_cont,
   scale_fill_viridis_c(
     name = "Number of \naccumulated\nCOVID-19\ncases till\nSept 18, 2020",
     trans = "log",
-    breaks = c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
-    labels = formatC(c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
+    breaks = c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
+    labels = formatC(c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
                      big.mark = ",", format = "f", digits = 0)) +
   theme_economist() +
   theme(legend.background = element_blank(),
@@ -159,8 +161,8 @@ ggplot(covid_cartogram_ncont,
   scale_fill_viridis_c(
     name = "Number of \naccumulated\nCOVID-19\ncases till\nSept 18, 2020",
     trans = "log",
-    breaks = c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
-    labels = formatC(c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
+    breaks = c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
+    labels = formatC(c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
                      big.mark = ",", format = "f", digits = 0)) +
   theme_economist() +
   theme(legend.background = element_blank(),
@@ -179,8 +181,8 @@ ggplot(covid_cartogram_dorling,
   scale_fill_viridis_c(
     name = "Number of \naccumulated\nCOVID-19\ncases till\nSept 18, 2020",
     trans = "log",
-    breaks = c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
-    labels = formatC(c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
+    breaks = c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
+    labels = formatC(c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
                      big.mark = ",", format = "f", digits = 0)) +
   theme_economist() +
   theme(legend.background = element_blank(),
@@ -204,8 +206,8 @@ ggplot(provinces_transformed) +
   scale_size_continuous(
     name = "Number of \naccumulated\nCOVID-19\ncases till\nSept 18, 2020",
     trans = "log",
-    breaks = c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
-    labels = formatC(c(0, 10, 100, 500, 2000, 10000, 50000, 70000),
+    breaks = c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
+    labels = formatC(c(0, 10, 50, 250, 1250, 6750, 33750, 70000),
                      big.mark = ",", format = "f", digits = 0),
     range =c(0,15)) +
   theme_economist() +
