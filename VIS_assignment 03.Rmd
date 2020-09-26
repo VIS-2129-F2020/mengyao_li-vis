@@ -63,7 +63,7 @@ ggplot(NEIGHBORHOOD) +
 
 # Creating a buffer
 
-I would like to know: how many of the bus stops in Chicago are within 30 meters of a public school? To figure this out, I will create a new polygon layer to represent a 200-meter buffer around the public schools. 
+I would like to know: how many of the bus stops in Chicago are within 200 meters of a public school? To figure this out, I will create a new polygon layer to represent a 200-meter buffer around the public schools. 
 ```{r}
 school_buffer <- st_buffer(PUB_SCHOOL, dist = 200) %>%
   st_union()
@@ -188,10 +188,10 @@ ggplot(NEIGHBORHOOD_3) +
 
 I want to know how far each school is from a bus stop.
 ```{r}
-# PUB_SCHOOL_2 <- PUB_SCHOOL %>%
- # mutate(bus_dist = st_nn(PUB_SCHOOL, BUS,
- #                        returnDist = TRUE)$dist) # %>%
- # mutate(bus_dist = as.numeric(bus_dist))
+PUB_SCHOOL_2 <- PUB_SCHOOL %>%
+  mutate(bus_dist = st_nn(PUB_SCHOOL, BUS,
+                         returnDist = TRUE)$dist)  %>%
+  mutate(bus_dist = as.numeric(bus_dist))
 ```
 
 # Identifying overlapping polygons
