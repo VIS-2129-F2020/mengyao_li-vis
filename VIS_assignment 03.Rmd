@@ -32,7 +32,7 @@ bus <- st_read("https://data.cityofchicago.org/download/84eu-buny/text%2Fxml", q
 
 # Transforming data
 
-I will transfrom my data to the Illinois East coordinate system.
+I will transform my data to the Illinois East coordinate system.
 
 ```{r}
 illinois_east <- "+proj=tmerc +lat_0=36.66666666666666 +lon_0=-88.33333333333333 +k=0.9999749999999999 +x_0=300000 +y_0=0 +ellps=GRS80 +units=m +no_defs "
@@ -55,7 +55,7 @@ Quick visualization of the data.
 ggplot(NEIGHBORHOOD) +
   geom_sf() +
   geom_sf(data = PARK, fill = "lightgreen", color = NA) +
-  geom_sf(data = PUB_SCHOOL, size = 0.05) +
+  geom_sf(data = PUB_SCHOOL, size = 1) +
   geom_sf(data = BUS, color = "blue", size = 0.01) +
   theme_map() +
   annotation_scale()
@@ -63,7 +63,7 @@ ggplot(NEIGHBORHOOD) +
 
 # Creating a buffer
 
-I would like to know: how many of the bus stops in Chicago are within 200 meters of a public school? To figure this out, I will create a new polygon layer to represent a 200-meter buffer around the public schools. 
+I would like to know: how many of the bus stops in Chicago are within 200 meters of a public school? To figure this out, I will create a new polygon layer representing a 200-meter buffer around the public schools. (Metric 1)
 ```{r}
 school_buffer <- st_buffer(PUB_SCHOOL, dist = 200) %>%
   st_union()
@@ -75,7 +75,7 @@ ggplot(school_buffer) +
 
 # Subsetting points with a polygon
 
-Now I can create a dataframe that only includes bus stops that are located within the public school buffer. Then we can see how that subset of bus stops looks on the map. I will draw them on top of the public school buffer.
+Now I can create a dataframe that only includes bus stops located within the public school buffer. Then we can see how that subset of bus stops looks on the map. I will draw them on top of the public school buffer. 
 ```{r}
 bus_school <- BUS[school_buffer,]
 
@@ -85,7 +85,7 @@ ggplot(school_buffer) +
   theme_map()
 ```
 
-Now I will join my two bus dataframes. For any trees that are in the BUS dataset, but not in bus_school, there will be an NA value for the variables Name.y and Description.y. Baed on which values of Name.y are NA, I can create a binary variable that indicated whether each bus stop is by a public school.
+Now I will join my two bus dataframes. For any trees that are in the BUS dataset, but not in bus_school, there will be an NA value for the variables Name.y and Description.y. Based on which values of Name.y are NA, I can create a binary variable that indicate whether each bus stop is by a public school.
 ```{r}
 BUS_new <- BUS %>%
   st_join(bus_school) %>%
@@ -124,26 +124,31 @@ ggplot(NEIGHBORHOOD) +
   annotation_north_arrow(location = "tr",
                          style = north_arrow_fancy_orienteering()) +
   annotate(geom = "text", 
-           x = left_side - 3000,
-           y = top_side - 3000,
+           x = left_side - 4000,
+           y = top_side - 2000,
            label = paste("Of the ", prettyNum(n_bus, big.mark = ","), " bus stops in Chicago\n",
                          prettyNum(n_bus_school, big.mark = ","), " (",
                          prettyNum(100*pct_bus_school, digits = 0),
-                         "%) are within 200\nmeters of a parking meter.", sep = ""),
-           hjust = 0, vjust = 0, size = 3) +
+                         "%) are within 200\nmeters of a public school.", sep = ""),
+           hjust = 0, vjust = 0, size = 4) +
   theme_map() +
-  theme(panel.background = element_rect(fill = "cornsilk1"),
-        legend.background = element_rect(fill = alpha("white", 0.5),
+  theme(legend.background = element_rect(fill = alpha("white", 0.5),
                                          color = "gray"))
 ```
 
 # Counting points in a polygon
 
-I wanted to know how many public schools are in each Chicago neighborhood.
+I wanted to know how many public schools are in each Chicago neighborhood. (Metric 5)
 ```{r}
 NEIGHBORHOOD_2 <- NEIGHBORHOOD %>%
   mutate(num_schools = lengths(st_covers(NEIGHBORHOOD, PUB_SCHOOL)))
+avg_school <- mean(NEIGHBORHOOD_2$num_schools)
+prettyNum(avg_school, digits = 0)
+```
 
+On average, in each Chicago neighborhood, there are 7 public schools. (Metric 15)
+
+```{r}
 ggplot(NEIGHBORHOOD_2) +
   geom_sf(color = NA,
           aes(fill = num_schools)) +
@@ -160,7 +165,7 @@ ggplot(NEIGHBORHOOD_2) +
 
 # Calculating areas and densities
 
-I am more interested in the density of bus stops (the number of bus stops per square km).
+I am also interested in the density of bus stops (the number of bus stops per square km) of each Chicago neighborhood. (Metric 21)
 
 ```{r}
 NEIGHBORHOOD_3 <- NEIGHBORHOOD %>%
@@ -186,17 +191,63 @@ ggplot(NEIGHBORHOOD_3) +
 
 # Finding the closest point
 
-I want to know how far each school is from a bus stop.
-```{r}
+I want to know how far each school is from a bus stop. (Metric 3)
+
+I would like to thank Carole for clarification of the st_nn function. At first, I encountered this error message: Problem with mutate() input bus_dist. x Query and data tables must have same dimensions i Input bus_dist is st_nn(PUB_SCHOOL, BUS, returnDist = TRUE)$dist. As Carole suggested, the locations of my bus stops are in (x,y,z) coordinates (so - three dimensions, with a z coordinate that supposedly represents elevation, but they're all set to zero, so it actually means nothing), and my school locations are in (x, y) coordinates (so, two dimensions). I should convert the bus stop locations to two dimensions (removing all the z coordinates by st_zm function) before using the st_nn function. 
+```{r, results = "hide"}
+BUS <- BUS %>%
+  mutate(geometry = st_zm(geometry))
 PUB_SCHOOL_2 <- PUB_SCHOOL %>%
   mutate(bus_dist = st_nn(PUB_SCHOOL, BUS,
                          returnDist = TRUE)$dist)  %>%
   mutate(bus_dist = as.numeric(bus_dist))
 ```
 
+Now I can calculate the average distance from a public school to the nearest bus stop.
+```{r}
+avg_bus_dist <- mean(PUB_SCHOOL_2$bus_dist)
+avg_bus_dist
+```
+
+On average, a public school is about 171 meters away from the nearest bus stop.
+
+Visualizing how far each public school is from a bus stop. I use coord_sf function to set the map extents to just the area where the public schools are.
+```{r, fig.width=8, fig.height=8}
+right_side <- st_bbox(PUB_SCHOOL_2)$xmax
+left_side <- st_bbox(PUB_SCHOOL_2)$xmin
+top_side <- st_bbox(PUB_SCHOOL_2)$ymax
+bottom_side <- st_bbox(PUB_SCHOOL_2)$ymin
+
+ggplot(NEIGHBORHOOD) +
+  geom_sf() +
+  geom_sf(data = PUB_SCHOOL_2, size = 1,
+          aes(color = bus_dist)) +
+  coord_sf(xlim = c(left_side, right_side),
+           ylim = c(bottom_side, top_side), expand = FALSE) +
+  scale_color_viridis_c(name = "Chicago public schools\nby distance to a bus stop",
+                        trans = "log",
+                        breaks = breaks <- c(4, 16, 64, 256, 1024),
+                        labels = paste(prettyNum(breaks), "m to a bus stop")) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "tr",
+                         style = north_arrow_fancy_orienteering()) +
+  annotate(geom = "text", x = left_side + 1000,
+           y = top_side - 3000,
+           label = paste("On average, a Chicago public school\nis ",
+                         prettyNum(avg_bus_dist, digits = 3),
+                         " meters from a bus stop.", sep = ""),
+           hjust = 0, vjust = 0, size = 4) +
+  theme_map() +
+  theme(panel.background = element_rect(fill = "cornsilk1"),
+        legend.background = element_rect(fill = alpha("white", 0.5),
+                                         color = "gray"))
+```
+
+
+
 # Identifying overlapping polygons
 
-I would like to know which neighborhoods have parks in them. 
+I would like to know which neighborhoods have parks in them. (Metric 13)
 
 ```{r}
 NEIGHBORHOOD_4 <- NEIGHBORHOOD %>%
@@ -204,8 +255,11 @@ NEIGHBORHOOD_4 <- NEIGHBORHOOD %>%
   mutate(has_park = num_park >0)
 
 n_park_nhoods <- sum(NEIGHBORHOOD_4$has_park)
+pct_park_nhoods <- n_park_nhoods / nrow(NEIGHBORHOOD_4)
 n_park_nhoods
+pct_park_nhoods
 ```
+In total, 48 neighborhoods (49%) have parks in them.
 
 ```{r}
 left_side <- st_bbox(PARK)$xmin
@@ -216,7 +270,7 @@ ggplot(PARK) +
   geom_sf(data = NEIGHBORHOOD_4,
            aes(fill = has_park)) +
   scale_fill_manual(values = c("cornsilk1", "darkseagreen1"),
-                    name = "Chicago Neighborhoods\nby preserce of a park",
+                    name = "Chicago Neighborhoods\nby presence of a park",
                     labels = c("Neighborhood without an\noverlapping park",
                                "Neighborhood with an\noverlapping park")) +
   annotation_scale(location = "br") +
@@ -228,8 +282,7 @@ ggplot(PARK) +
            label = paste(n_park_nhoods, "of Chicago's", length(NEIGHBORHOOD_4$Name), "neighborhoods contain\nor overlap with a body of water."),
            hjust = 0, vjust = 0, size = 3) +
   theme_map() +
-  theme(panel.background = element_rect(fill = "gray"),
-        legend.background = element_rect(fill = alpha("white", 0.5),
+  theme(legend.background = element_rect(fill = alpha("white", 0.5),
                                           color = "gray"))
 ```
 
