@@ -306,7 +306,7 @@ ggplot(PARK) +
   annotate(geom = "text", 
            x = left_side - 8000,
            y = top_side - 1000,
-           label = paste(n_park_nhoods, "of Chicago's", length(NEIGHBORHOOD_5$Name), "neighborhoods contain\nor overlap with a body of water."),
+           label = paste(n_park_nhoods, "of Chicago's", length(NEIGHBORHOOD_5$Name), "neighborhoods contain\nor overlap with a park."),
            hjust = 0, vjust = 0, size = 3) +
   theme_map() +
   theme(legend.background = element_rect(fill = alpha("white", 0.5),
