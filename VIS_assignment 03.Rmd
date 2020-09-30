@@ -54,14 +54,16 @@ Quick visualization of the data.
 ```{r, fig.width=8, fig.height=8}
 ggplot(NEIGHBORHOOD) +
   geom_sf() +
-  geom_sf(data = PARK, fill = "lightgreen", color = NA) +
+  geom_sf(data = PARK, fill = "chartreuse3", color = NA) +
   geom_sf(data = PUB_SCHOOL, size = 1) +
-  geom_sf(data = BUS, color = "blue", size = 0.01) +
+  geom_sf(data = BUS, color = "dodgerblue3", size = 0.01) +
   theme_map() +
   annotation_scale()
 ```
 
-# Creating a buffer
+# 1. The number and proportion of A points within a specified distance of B points
+
+## Creating a buffer
 
 I would like to know: how many of the bus stops in Chicago are within 200 meters of a public school? To figure this out, I will create a new polygon layer representing a 200-meter buffer around the public schools. (Metric 1)
 ```{r}
@@ -73,7 +75,7 @@ ggplot(school_buffer) +
   theme_map()
 ```
 
-# Subsetting points with a polygon
+## Subsetting points with a polygon
 
 Now I can create a dataframe that only includes bus stops located within the public school buffer. Then we can see how that subset of bus stops looks on the map. I will draw them on top of the public school buffer. 
 ```{r}
@@ -81,7 +83,7 @@ bus_school <- BUS[school_buffer,]
 
 ggplot(school_buffer) +
   geom_sf() +
-  geom_sf(data = bus_school, color = "blue", size = 0.01) +
+  geom_sf(data = bus_school, color = "dodgerblue3", size = 0.01) +
   theme_map()
 ```
 
@@ -114,9 +116,9 @@ top_side <- st_bbox(BUS_new)$ymax
 
 ggplot(NEIGHBORHOOD) +
   geom_sf() + 
-  geom_sf(data = BUS_new, size = 0.01,
+  geom_sf(data = BUS_new, size = 0.1,
           aes(color = by_school)) +
-  scale_color_manual(values = c("lightblue", "blue"),
+  scale_color_manual(values = c("lightblue", "dodgerblue3"),
                      name = "Chicago Bus Stops\nby distance to a public school",
                      labels = c("No public school within 200 m",
                                 "Public school within 200m")) +
@@ -136,9 +138,9 @@ ggplot(NEIGHBORHOOD) +
                                          color = "gray"))
 ```
 
-# Counting points in a polygon
+# 2. The number and proportion of A points within C polygons & The average number of A points in each C polygon
 
-I wanted to know how many public schools are in each Chicago neighborhood. (Metric 5)
+I wanted to know how many public schools are in each Chicago neighborhood.
 ```{r}
 NEIGHBORHOOD_2 <- NEIGHBORHOOD %>%
   mutate(num_schools = lengths(st_covers(NEIGHBORHOOD, PUB_SCHOOL)))
@@ -146,7 +148,7 @@ avg_school <- mean(NEIGHBORHOOD_2$num_schools)
 prettyNum(avg_school, digits = 0)
 ```
 
-On average, in each Chicago neighborhood, there are 7 public schools. (Metric 15)
+On average, in each Chicago neighborhood, there are 7 public schools.
 
 ```{r}
 ggplot(NEIGHBORHOOD_2) +
@@ -163,9 +165,9 @@ ggplot(NEIGHBORHOOD_2) +
                                          color = "gray"))
 ```
 
-# Calculating areas and densities
+# 3. The average density of B points in each C polygon
 
-I am also interested in the density of bus stops (the number of bus stops per square km) of each Chicago neighborhood. (Metric 21)
+I am also interested in the density of bus stops (the number of bus stops per square km) of each Chicago neighborhood.
 
 ```{r}
 NEIGHBORHOOD_3 <- NEIGHBORHOOD %>%
@@ -189,9 +191,34 @@ ggplot(NEIGHBORHOOD_3) +
                                          color = "gray"))
 ```
 
-# Finding the closest point
+# 4. The average density of A points in each C polygon
 
-I want to know how far each school is from a bus stop. (Metric 3)
+I would like to know the density of public schools (the number of public schools per square km) of each Chicago neighborhood.
+
+```{r}
+NEIGHBORHOOD_4 <- NEIGHBORHOOD %>%
+  mutate(num_school = lengths(st_covers(NEIGHBORHOOD, PUB_SCHOOL))) %>%
+  mutate(area = set_units(st_area(NEIGHBORHOOD), km^2)) %>%
+  mutate(school_dens = as.numeric(num_school / area))
+
+ggplot(NEIGHBORHOOD_4) +
+  geom_sf(color = NA,
+          aes(fill = school_dens)) +
+  scale_fill_viridis_c(name = "Chicago neighborhoods\npublic school density",
+                       breaks = breaks <- seq(0,5,by=1),
+                       labels = paste(prettyNum(breaks), "public schools per square km")) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "tr",
+                         style = north_arrow_fancy_orienteering()) +
+  theme_map() +
+  theme(legend.position = "right",
+        legend.background = element_rect(fill = alpha("white", 0.5),
+                                         color = "gray"))
+```
+
+# 5. The average (Euclidean) distance between A points and their nearest respective B points
+
+I want to know how far each school is from a bus stop.
 
 I would like to thank Carole for clarification of the st_nn function. At first, I encountered this error message: Problem with mutate() input bus_dist. x Query and data tables must have same dimensions i Input bus_dist is st_nn(PUB_SCHOOL, BUS, returnDist = TRUE)$dist. As Carole suggested, the locations of my bus stops are in (x,y,z) coordinates (so - three dimensions, with a z coordinate that supposedly represents elevation, but they're all set to zero, so it actually means nothing), and my school locations are in (x, y) coordinates (so, two dimensions). I should convert the bus stop locations to two dimensions (removing all the z coordinates by st_zm function) before using the st_nn function. 
 ```{r, results = "hide"}
@@ -245,17 +272,17 @@ ggplot(NEIGHBORHOOD) +
 
 
 
-# Identifying overlapping polygons
+# 6. The number and proportion of C polygons that overlap with D polygons
 
-I would like to know which neighborhoods have parks in them. (Metric 13)
+I would like to know which neighborhoods have parks in them.
 
 ```{r}
-NEIGHBORHOOD_4 <- NEIGHBORHOOD %>%
+NEIGHBORHOOD_5 <- NEIGHBORHOOD %>%
   mutate(num_park = lengths(st_overlaps(NEIGHBORHOOD, PARK))) %>%
   mutate(has_park = num_park >0)
 
-n_park_nhoods <- sum(NEIGHBORHOOD_4$has_park)
-pct_park_nhoods <- n_park_nhoods / nrow(NEIGHBORHOOD_4)
+n_park_nhoods <- sum(NEIGHBORHOOD_5$has_park)
+pct_park_nhoods <- n_park_nhoods / nrow(NEIGHBORHOOD_5)
 n_park_nhoods
 pct_park_nhoods
 ```
@@ -267,7 +294,7 @@ top_side <- st_bbox(PARK)$ymax
 
 ggplot(PARK) +
   geom_sf(fill = "lightgreen", color = NA) +
-  geom_sf(data = NEIGHBORHOOD_4,
+  geom_sf(data = NEIGHBORHOOD_5,
            aes(fill = has_park)) +
   scale_fill_manual(values = c("cornsilk1", "darkseagreen1"),
                     name = "Chicago Neighborhoods\nby presence of a park",
@@ -279,7 +306,7 @@ ggplot(PARK) +
   annotate(geom = "text", 
            x = left_side - 8000,
            y = top_side - 1000,
-           label = paste(n_park_nhoods, "of Chicago's", length(NEIGHBORHOOD_4$Name), "neighborhoods contain\nor overlap with a body of water."),
+           label = paste(n_park_nhoods, "of Chicago's", length(NEIGHBORHOOD_5$Name), "neighborhoods contain\nor overlap with a body of water."),
            hjust = 0, vjust = 0, size = 3) +
   theme_map() +
   theme(legend.background = element_rect(fill = alpha("white", 0.5),
