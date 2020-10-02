@@ -1,0 +1,175 @@
+---
+title: "VIS assignment 04"
+author: "Mengyao"
+date: "2020/10/2"
+output: 
+  html_document:
+    theme: lumen
+    toc: true
+    toc_float: true
+---
+
+# Loading packages
+```{r, message=FALSE}
+library(osmdata)
+library(opentripplanner)
+library(tidyverse)
+library(sf)
+library(ggthemes)
+library(ggspatial)
+library(raster)
+```
+
+
+# Loading locations
+
+I will import a KML file from the City of Las Vegas Open Data Portal. This data set shows the locations of all Las Vegas polling station locations. The result messages show that this is point data with latitude/longitude coordinates, and I will keep it.
+```{r}
+LV_polling <- st_read("https://opendata.arcgis.com/datasets/2aa739da08154060980105847e6297ee_0.kml?outSR=%7B%22latestWkid%22%3A3421%2C%22wkid%22%3A102707%7D")
+```
+
+## Get street data
+
+I will use Open Trip Planner to find the areas of Las Vegas that are within five minutes of a polling station by walking, by car, and by bike.
+```{r, eval=FALSE}
+opq(bbox = 'Las Vegas USA') %>%
+  add_osm_feature(key = 'highway') %>%
+  osmdata_xml(file = 'OTP/graphs/default/lv_polling_stations.osm')
+```
+
+I will get a set of sf features from OpenStreetMap to plot on a map.
+```{r}
+Nevada_mercator <- "+proj=tmerc +lat_0=36.1 +lon_0=-115 +k=1 +x_0=85000 +y_0=125000 +ellps=GRS80 +units=m +no_defs"
+
+lv_street_features <- opq(bbox = 'Las Vegas USA') %>%
+  add_osm_feature(key = 'highway') %>%
+  osmdata_sf()
+
+lv_streets <- lv_street_features$osm_lines %>%
+  st_transform(crs = Nevada_mercator)
+```
+
+I will quickly visualize the streets in Las Vegas.
+```{r}
+ggplot(lv_streets) +
+  geom_sf() +
+  theme_map()
+```
+
+# Set up Open Trip Planner
+
+I will download a little Java utility called otp.jar and save it to the OPT directory we've created.
+```{r, eval=FALSE}
+ path_otp <- otp_dl_jar("OTP")
+```
+
+Now I will build a graph. This is a representation of the street and transit networks.
+```{r, message=FALSE, results='hide'}
+path_data <- file.path(getwd(), "OTP")
+path_otp <- paste(path_data, "otp.jar", sep = "/")
+
+otp_build_graph(otp = path_otp, dir = path_data)
+```
+
+I will launch Open Trip Planner.
+```{r}
+otp_setup(otp = path_otp, dir = path_data)
+```
+
+Connect to open trip planner
+```{r}
+otpcon <- otp_connect()
+```
+
+# Create isochrones
+
+I will create isochrones for areas within a five-minute walk and a five-minute drive.
+
+```{r}
+iso_5min_walk <- 
+  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "WALK", cutoffSec = 300)  %>%
+  st_transform(crs = Nevada_mercator) %>%
+  mutate(mode = "walk")
+
+iso_5min_drive <-
+  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "CAR", cutoffSec = 300) %>%
+  st_transform(crs = Nevada_mercator) %>%
+  mutate(mode = "drive")
+
+iso_5min_bike <-
+  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "BICYCLE", cutoffSec = 300) %>%
+  st_transform(crs = Nevada_mercator) %>%
+  mutate(mode = "bike")
+```
+
+```{r}
+iso_all_modes <- rbind(iso_5min_drive, iso_5min_walk, iso_5min_bike)
+```
+
+Now I can draw a map of these isochrones on a map. I will use a background image from Open Street Map as a base map. 
+
+```{r, fig.width=8, fig.height=8}
+right_side <- st_bbox(iso_all_modes)$xmax
+left_side <- st_bbox(iso_all_modes)$xmin
+top_side <- st_bbox(iso_all_modes)$ymax
+bottom_side <- st_bbox(iso_all_modes)$ymin
+
+ggplot(iso_all_modes) +
+  annotation_map_tile(zoomin = 0, type = "osmgrayscale", progress = "none") +
+  geom_sf(aes(fill = mode), alpha = 0.5) +
+  geom_sf(data = LV_polling) +
+  coord_sf(xlim = c(left_side, right_side),
+           ylim = c(bottom_side, top_side), expand = FALSE) +
+  scale_fill_viridis_d(name = "Area that is reachable within 5 minutes",
+                     labels = c("By bicycle", "By car", "By foot"),) +
+  theme_map() +
+  labs(caption = "Basemap Copyright OpenStreetMap contributors")
+```
+
+# Calculate and compare isochrone areas
+
+I will use st_area() function to calculate the area of each isochrone and visualize the relationship between the size of a walkshed and the size of a driveshed.
+
+The function pivot_wider() creates a separate column for each value of a specified variable, so that each row represents a location (with three associated isochrones), rather than having each row represent an isochrone.
+```{r}
+iso_areas <- iso_all_modes %>%
+  mutate(area = st_area(iso_all_modes)) %>%
+  st_set_geometry(NULL) %>%
+  pivot_wider(names_from = mode, values_from = area)
+
+ggplot(iso_areas,
+       aes(x = as.numeric(walk), y = as.numeric(drive))) +
+  geom_point() +
+  scale_x_continuous(name = "Area within a 5-min walking distance\nof a polling station(square km)") +
+  scale_y_continuous(name = "Area within a 5-min driving distance\nof a polling station(square km)") +
+  theme_economist()
+```
+
+I will close the java application.
+```{r}
+otp_stop()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
