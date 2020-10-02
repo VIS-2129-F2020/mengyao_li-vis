@@ -146,7 +146,7 @@ ggplot(iso_areas,
 ```
 
 I will close the java application.
-```{r}
+```{r, results='hide'}
 otp_stop()
 ```
 
