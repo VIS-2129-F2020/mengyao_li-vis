@@ -30,7 +30,7 @@ LV_polling <- st_read("https://opendata.arcgis.com/datasets/2aa739da081540609801
 
 ## Get street data
 
-I will use Open Trip Planner to find the areas of Las Vegas that are within five minutes of a polling station by walking, by car, and by bike.
+I will use Open Trip Planner to find the areas of Las Vegas that are within 10 minutes of a polling station by walking, by car, and by bike.
 ```{r, eval=FALSE}
 opq(bbox = 'Las Vegas USA') %>%
   add_osm_feature(key = 'highway') %>%
@@ -83,27 +83,27 @@ otpcon <- otp_connect()
 
 # Create isochrones
 
-I will create isochrones for areas within a five-minute walk and a five-minute drive.
+I will create isochrones for areas within a ten-minute walk and a five-minute drive.
 
-```{r}
-iso_5min_walk <- 
-  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "WALK", cutoffSec = 300)  %>%
+```{r, warning=FALSE}
+iso_10min_walk <- 
+  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "WALK", cutoffSec = 600)  %>%
   st_transform(crs = Nevada_mercator) %>%
   mutate(mode = "walk")
 
-iso_5min_drive <-
-  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "CAR", cutoffSec = 300) %>%
+iso_10min_drive <-
+  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "CAR", cutoffSec = 600) %>%
   st_transform(crs = Nevada_mercator) %>%
   mutate(mode = "drive")
 
-iso_5min_bike <-
-  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "BICYCLE", cutoffSec = 300) %>%
+iso_10min_bike <-
+  otp_isochrone(otpcon = otpcon, fromPlace = LV_polling, mode = "BICYCLE", cutoffSec = 600) %>%
   st_transform(crs = Nevada_mercator) %>%
   mutate(mode = "bike")
 ```
 
 ```{r}
-iso_all_modes <- rbind(iso_5min_drive, iso_5min_walk, iso_5min_bike)
+iso_all_modes <- rbind(iso_10min_bike, iso_10min_drive, iso_10min_walk)
 ```
 
 Now I can draw a map of these isochrones on a map. I will use a background image from Open Street Map as a base map. 
@@ -114,14 +114,14 @@ left_side <- st_bbox(iso_all_modes)$xmin
 top_side <- st_bbox(iso_all_modes)$ymax
 bottom_side <- st_bbox(iso_all_modes)$ymin
 
-ggplot(iso_all_modes) +
-  annotation_map_tile(zoomin = 0, type = "osmgrayscale", progress = "none") +
-  geom_sf(aes(fill = mode), alpha = 0.5) +
+ggplot(iso_10min_drive) +
+  annotation_map_tile(zoomin = 0, progress = "none") +
+  geom_sf(fill = "lightblue", alpha = 0.5) +
+  geom_sf(data = iso_10min_bike, fill = "cornflowerblue", alpha = 0.5) +
+  geom_sf(data = iso_10min_walk, fill = "dodgerblue3") +
   geom_sf(data = LV_polling) +
   coord_sf(xlim = c(left_side, right_side),
            ylim = c(bottom_side, top_side), expand = FALSE) +
-  scale_fill_viridis_d(name = "Area that is reachable within 5 minutes",
-                     labels = c("By bicycle", "By car", "By foot"),) +
   theme_map() +
   labs(caption = "Basemap Copyright OpenStreetMap contributors")
 ```
@@ -140,9 +140,71 @@ iso_areas <- iso_all_modes %>%
 ggplot(iso_areas,
        aes(x = as.numeric(walk), y = as.numeric(drive))) +
   geom_point() +
-  scale_x_continuous(name = "Area within a 5-min walking distance\nof a polling station(square km)") +
-  scale_y_continuous(name = "Area within a 5-min driving distance\nof a polling station(square km)") +
+  scale_x_continuous(name = "Area within a 10-min walking distance\nof a polling station(square km)") +
+  scale_y_continuous(name = "Area within a 10-min driving distance\nof a polling station(square km)") +
   theme_economist()
+```
+
+# Polling station accessibility map
+
+I will first import Las Vegas neighborhoods and then transform the coordinate system.
+```{r}
+nhoods <- st_read("https://opendata.arcgis.com/datasets/0629d6512c0d425badf2bd1a366aa41d_0.kml?geometry=%7B%22xmin%22%3A-115.867%2C%22ymin%22%3A36.08%2C%22xmax%22%3A-114.56%2C%22ymax%22%3A36.274%2C%22type%22%3A%22extent%22%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&outSR=%7B%22latestWkid%22%3A3421%2C%22wkid%22%3A102707%7D", quiet = TRUE)
+
+nhoods1 <- as(nhoods, "Spatial")
+```
+
+I will cover Las Vegas with many points around which I will create isochrones and count the number of polling stations within each of those isochrones. 
+```{r}
+points <- spsample(nhoods1, n = 1000, type = "regular")
+```
+
+I will make a dataframe of points.
+```{r}
+points <- st_as_sf(x = points,
+                   coords = coords,
+                   crs = 4326)
+```
+
+I will create a 10 min driveshed around each point in "points"dataframe.
+```{r, warning=FALSE}
+iso_10min_drive_02 <- otp_isochrone(otpcon = otpcon, fromPlace = points, mode= "CAR", cutoffSec = 600)
+```
+
+I will count the number of polling stations in the 10min polygons.
+```{r}
+iso_10min_drive_02 <- iso_10min_drive_02 %>%
+  mutate(polling_score = lengths(st_covers(geometry, LV_polling)))
+```
+
+Now we have iso_10min_drive_02 dataframe with 
+geometry column which contains polygons, 
+fromPlace column which contains lat, long together as a string (character), and 
+polling_score column which is the number of polling stations in the polygon. 
+
+I will extract coordinates from fromPlace column.
+```{r}
+out <- data.frame(str_split_fixed(iso_10min_drive_02$fromPlace, ",", 2))
+
+out <- st_as_sf(x = out,
+                coords = c("X2", "X1"),
+                crs = 4326)
+
+out$polling_score <- iso_10min_drive_02$polling_score
+```
+
+I will visualize the results.
+```{r}
+ggplot(nhoods) +
+  geom_sf(fill = "NA", color = "grey") +
+  geom_sf(data = out, 
+          aes(color = polling_score)) +
+  scale_color_gradientn(colors = c("dodgerblue4", "cyan1"),
+                       name = "Number of polling stations\nwithin a 10 min drive") +
+  theme_map() +
+  theme(legend.position = c(.7,0),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Polling Station Accessibility Map")
 ```
 
 I will close the java application.
