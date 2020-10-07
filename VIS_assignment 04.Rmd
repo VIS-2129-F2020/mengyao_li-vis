@@ -18,6 +18,7 @@ library(sf)
 library(ggthemes)
 library(ggspatial)
 library(raster)
+library(units)
 ```
 
 
@@ -125,6 +126,39 @@ ggplot(iso_10min_drive) +
   theme_map() +
   labs(caption = "Basemap Copyright OpenStreetMap contributors")
 ```
+
+# Merged area for 10min drive isochrones
+
+I learned this from Meghan's html file.
+```{r}
+total_10min_drive <- st_as_sf(st_union(iso_10min_drive$geometry))
+
+right <- st_bbox(total_10min_drive)$xmax
+left <- st_bbox(total_10min_drive)$xmin
+top <- st_bbox(total_10min_drive)$ymax
+bottom <- st_bbox(total_10min_drive)$ymin
+
+ggplot(total_10min_drive) +
+  annotation_map_tile(type = "cartolight", zoomin = 0, progress = "none") +
+  geom_sf(fill = "lightgoldenrod1", color = NA, alpha = 0.5) +
+  geom_sf(data = LV_polling, color = "tan3") +
+  coord_sf(xlim = c(left, right),
+           ylim = c(bottom, top), expand = FALSE) +
+  annotate(geom = "text", 
+           x = left_side +500, 
+           y = top_side - 500, 
+           label = paste("Overlapping polling station 10 minute drivesheds"), 
+           hjust = 0, vjust = 0, size = 3) +
+  theme_map() +
+  labs(caption = "Basemap Copyright OpenStreetMap contributors") 
+```
+
+```{r}
+area <- st_area(total_10min_drive) %>%
+  set_units(km^2)
+area
+```
+As I know that Las Vegas is of 352 km^2, 57% of the land have polling stations accessible in 10-minute drive.
 
 # Calculate and compare isochrone areas
 
