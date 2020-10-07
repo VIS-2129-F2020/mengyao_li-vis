@@ -1,5 +1,5 @@
 ---
-title: "VIS assignment 04"
+title: "VIS_assignment 04"
 author: "Mengyao"
 date: "2020/10/2"
 output: 
@@ -83,7 +83,7 @@ otpcon <- otp_connect()
 
 # Create isochrones
 
-I will create isochrones for areas within a ten-minute walk and a five-minute drive.
+I will create isochrones for areas within a ten-minute walk, a ten-minute bike, and a five-minute drive.
 
 ```{r, warning=FALSE}
 iso_10min_walk <- 
@@ -147,9 +147,9 @@ ggplot(iso_areas,
 
 # Polling station accessibility map
 
-I will first import Las Vegas neighborhoods and then transform the coordinate system.
+I will first import Las Vegas neighborhoods. The result messages show that this is point data with latitude/longitude coordinates, and I will keep it.
 ```{r}
-nhoods <- st_read("https://opendata.arcgis.com/datasets/0629d6512c0d425badf2bd1a366aa41d_0.kml?geometry=%7B%22xmin%22%3A-115.867%2C%22ymin%22%3A36.08%2C%22xmax%22%3A-114.56%2C%22ymax%22%3A36.274%2C%22type%22%3A%22extent%22%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&outSR=%7B%22latestWkid%22%3A3421%2C%22wkid%22%3A102707%7D", quiet = TRUE)
+nhoods <- st_read("https://opendata.arcgis.com/datasets/0629d6512c0d425badf2bd1a366aa41d_0.kml?geometry=%7B%22xmin%22%3A-115.867%2C%22ymin%22%3A36.08%2C%22xmax%22%3A-114.56%2C%22ymax%22%3A36.274%2C%22type%22%3A%22extent%22%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&outSR=%7B%22latestWkid%22%3A3421%2C%22wkid%22%3A102707%7D")
 
 nhoods1 <- as(nhoods, "Spatial")
 ```
@@ -157,18 +157,19 @@ nhoods1 <- as(nhoods, "Spatial")
 I will cover Las Vegas with many points around which I will create isochrones and count the number of polling stations within each of those isochrones. 
 ```{r}
 points <- spsample(nhoods1, n = 1000, type = "regular")
+plot(points)
 ```
 
 I will make a dataframe of points.
 ```{r}
 points <- st_as_sf(x = points,
-                   coords = coords,
                    crs = 4326)
 ```
 
 I will create a 10 min driveshed around each point in "points"dataframe.
 ```{r, warning=FALSE}
-iso_10min_drive_02 <- otp_isochrone(otpcon = otpcon, fromPlace = points, mode= "CAR", cutoffSec = 600)
+iso_10min_drive_02 <- 
+  otp_isochrone(otpcon = otpcon, fromPlace = points, mode= "CAR", cutoffSec = 600)
 ```
 
 I will count the number of polling stations in the 10min polygons.
