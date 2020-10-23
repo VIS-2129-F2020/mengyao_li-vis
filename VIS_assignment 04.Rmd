@@ -125,6 +125,8 @@ ggplot(iso_10min_drive) +
            ylim = c(bottom_side, top_side), expand = FALSE) +
   theme_map() +
   labs(caption = "Basemap Copyright OpenStreetMap contributors")
+
+# Plot them one by one instead of plot the iso_all_modes: lose the ability to do legend. Unavoidable.
 ```
 
 # Merged area for 10min drive isochrones
@@ -198,6 +200,7 @@ I will make a dataframe of points.
 ```{r}
 points <- st_as_sf(x = points,
                    crs = 4326)
+#This "crs" is not applying it a new crs, but telling R that those points are in what crs. So should NOT try transform crs in this step. Do that in another code chunk of "st_transform". The "crs = 4326" is short for coordinate system WGS84.
 ```
 
 I will create a 10 min driveshed around each point in "points"dataframe.
