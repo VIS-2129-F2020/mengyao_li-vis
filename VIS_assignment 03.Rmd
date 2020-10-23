@@ -157,6 +157,7 @@ ggplot(NEIGHBORHOOD_2) +
   scale_fill_viridis_c(name = "Chicago neighborhoods by\nnumber of public schools",
                        breaks = breaks <- seq(0, 35, by = 5),
                        labels = paste(prettyNum(breaks), "public schools")) +
+  # do breaks = breaks is to make the label step easier. so it can refer to the breaks definition. We can also do breaks = seq() outside the ggplot chunk, and inside just refer to that as breaks = breaks.
   annotation_scale(location = "br") +
   annotation_north_arrow(location = "tr", 
                          style = north_arrow_fancy_orienteering()) +
