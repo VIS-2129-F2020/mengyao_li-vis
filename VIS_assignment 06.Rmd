@@ -1,0 +1,102 @@
+---
+title: "VIS_assignment 06"
+author: "Mengyao"
+date: "2020/10/24"
+output: 
+  html_document:
+    theme: lumen
+    toc: true
+    toc_float: true
+---
+
+# Loading packages
+```{r, message=FALSE}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(htmltools)
+library(htmlwidgets)
+```
+
+# Loading data
+
+First, I will import a set of points representing visited/resided buildings of probable/confirmed COVID-19 cases in the past 14 days (28 days if with cluster). I will convert the coordination system to WGS84.
+```{r}
+covid <- st_read("CHP_BUILDING_COVID19_20201023.geojson")
+covid <- covid %>%
+  st_transform(crs = 4326)
+```
+
+# Displaying points on a Leaflet map
+
+Now I will draw the points on a leaflet map so we can pan around and zoom in on the parts of Hong Kong where we want to see the buildings in more detail.
+
+## Points as markers
+
+I will start by showing the points as markers. It looks less messy after zooming in.
+```{r}
+covid_map1 <- leaflet(covid) %>%
+  addProviderTiles(providers$OpenStreetMap) %>%
+  addMarkers(popup = ~BLDGNAME_EN) %>%
+  addControl("Visited/resided buildings of probable/confirmed COVID-19 cases in the past 14 days", position = "topright") %>%
+  addControl('<a href = "https://geodata.gov.hk/gs/view-dataset?uuid=ab290617-f93b-416e-a00d-114566a7783a&sidx=0">Data source</a>',
+             position = "bottomleft")
+
+covid_map1
+```
+
+## Points as circles
+
+It might look cleaner to show the points as little circles.
+```{r}
+covid_map2 <- leaflet(covid) %>%
+  addProviderTiles(providers$Stamen) %>%
+  addCircles(fillColor = "red", color = "red",
+             stroke = FALSE, radius = 200,
+             highlightOptions = highlightOptions(fillColor = "hotpink",
+                                                 fillOpacity = 1),
+             popup = ~BLDGNAME_EN) %>%
+  addControl("Visited/resided buildings of probable/confirmed COVID-19 cases in the past 14 days", position = "topright") %>%
+  addControl('<a href = "https://geodata.gov.hk/gs/view-dataset?uuid=ab290617-f93b-416e-a00d-114566a7783a&sidx=0">Data source</a>',
+             position = "bottomleft")
+
+covid_map2  
+```
+
+## Points as circles of varying sizes
+
+How to change those into numerics and count?
+
+#Saving a separate html file
+
+I can use the saveWidget() function to save any of my leaflet maps as in its own html file. 
+```{r}
+saveWidget(covid_map2, file = "covid buildings.html")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
