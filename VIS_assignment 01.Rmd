@@ -104,7 +104,8 @@ all_data <- inner_join(all_data_01, data_race, by="geoid")
 knitr::kable(all_data[1:10,])
 ```
 ```{r}
-unique(all_data$majority_race)
+sum(all_data$majority_race == "None")
+# calculate how many times a value appear in a column. note: "==" instead of "=".
 ```
 
 # Plot 1
@@ -138,13 +139,15 @@ Percentage of people using car for commute and median income
 ```{r}
 ggplot(all_data,
        aes(x=pct_car,
-           y=median_income)) +
+           y=as.numeric(median_income))) +
+# At first, I have income as categorical variable. change that with "as.numeric"
   geom_point() +
   scale_x_continuous(name = "Percentage of people using car for commuting",
                      breaks = seq(0,1,by=0.1),
-                     labels = paste(seq(0,100, by=10), "%", sep = ""))+
-  scale_y_discrete(name = "Median income",
-                   breaks = seq(10000, 110000, by=10000)) +
+                     labels = paste(seq(0,100, by=10), "%", sep = "")) +
+  scale_y_continuous(name = "Median income",
+                   breaks = seq(10000, 110000, by=10000),
+                   labels = paste("$", seq(10000, 110000, by = 10000))) +
   theme_light()
 ```
 
@@ -155,10 +158,10 @@ ggplot(all_data,
        aes(x=majority_race,
            y=pct_pub_trans,
            fill= majority_race)) +
-  geom_dotplot(binaxis = "y", dotsize = 0.5) +
+  geom_dotplot(binwidth = .015, binaxis = "y", dotsize = 0.5) +
   scale_x_discrete(name ="Majority race",
                    labels = c("No Majority", "Asian", "White")) +
-  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+  scale_y_continuous(name = "Percentage of people using\npublic transportation for commute",
                      breaks = seq(0,1,by=0.1),
                      labels = paste(seq(0,100,by=10), "%", sep="")) +
   labs(fill = "Majority race") +
@@ -195,7 +198,7 @@ ggplot(all_data,
   scale_x_continuous(name = "Percentage of people using car for commuting",
                      breaks = seq(0,1,by=0.1),
                      labels = paste(seq(0,100, by=10), "%", sep = ""))+
-  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+  scale_y_continuous(name = "Percentage of people using\npublic transportation for commute",
                      breaks = seq(0,1,by=0.1),
                      labels = paste(seq(0,100,by=10), "%", sep="")) +
   theme_minimal()
@@ -208,10 +211,10 @@ ggplot(all_data,
        aes(x = majority_race,
            y = pct_pub_trans,
            fill = majority_race)) +
-  geom_violin(width = 2.1, size = 0.2, alpha = 0.75) +
+  geom_violin(width = 1.5, size = 0.2, alpha = 0.75) +
   scale_x_discrete(name ="Majority race",
                    labels = c("No Majority", "Asian", "White")) +
-  scale_y_continuous(name = "Percentage of people using public transportation for commute",
+  scale_y_continuous(name = "Percentage of people using\npublic transportation for commute",
                      breaks = seq(0,1,by=0.1),
                      labels = paste(seq(0,100,by=10), "%", sep="")) +
   theme_minimal()
