@@ -10,7 +10,7 @@ output:
 ---
 
 # Loading packages
-```{r, message=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(sf)
 library(leaflet)
@@ -49,13 +49,20 @@ covid_map1
 
 It might look cleaner to show the points as little circles.
 ```{r}
-covid_map2 <- leaflet(covid) %>%
-  addProviderTiles(providers$Stamen) %>%
+covid_map2 <- leaflet(covid,
+                      options = leafletOptions(minZoom = 11, maxZoom = 15)) %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
   addCircles(fillColor = "red", color = "red",
              stroke = FALSE, radius = 200,
              highlightOptions = highlightOptions(fillColor = "hotpink",
                                                  fillOpacity = 1),
-             popup = ~BLDGNAME_EN) %>%
+             label = "COVID-19 has been here",
+             popup = paste("Building Name: ", covid$BLDGNAME_EN, "<br/>",
+                           "Related Case Number: ", covid$RELATEDCASESNO)) %>%
+  setMaxBounds(lng1 = 113,
+               lat1 = 22,
+               lng2 = 115,
+               lat2 = 23) %>%
   addControl("Visited/resided buildings of probable/confirmed COVID-19 cases in the past 14 days", position = "topright") %>%
   addControl('<a href = "https://geodata.gov.hk/gs/view-dataset?uuid=ab290617-f93b-416e-a00d-114566a7783a&sidx=0">Data source</a>',
              position = "bottomleft")
@@ -63,11 +70,7 @@ covid_map2 <- leaflet(covid) %>%
 covid_map2  
 ```
 
-## Points as circles of varying sizes
-
-How to change those into numerics and count?
-
-#Saving a separate html file
+# Saving a separate html file
 
 I can use the saveWidget() function to save any of my leaflet maps as in its own html file. 
 ```{r}
