@@ -16,6 +16,7 @@ library(sf)
 library(leaflet)
 library(htmltools)
 library(htmlwidgets)
+library(RColorBrewer)
 ```
 
 # Loading data
@@ -27,7 +28,13 @@ covid <- covid %>%
   st_transform(crs = 4326)
 ```
 
-# Displaying points on a Leaflet map
+I will also import a set of polygons representing all districts of Hong Kong with their populations density information.
+```{r}
+districts <- read_sf(dsn = ".", layer = "Hong_Kong_Mid_Year_Population_Density_in_2018")
+names(districts)[5] <- "pop_density" 
+```
+
+# Displaying points and polygons on a Leaflet map
 
 Now I will draw the points on a leaflet map so we can pan around and zoom in on the parts of Hong Kong where we want to see the buildings in more detail.
 
@@ -35,9 +42,11 @@ Now I will draw the points on a leaflet map so we can pan around and zoom in on 
 
 I will start by showing the points as markers. It looks less messy after zooming in.
 ```{r}
-covid_map1 <- leaflet(covid) %>%
+covid_map1 <- leaflet(districts) %>%
   addProviderTiles(providers$OpenStreetMap) %>%
-  addMarkers(popup = ~BLDGNAME_EN) %>%
+  addPolygons(fillColor = "grey", stroke = FALSE) %>%
+  addMarkers(data = covid,
+             popup = ~BLDGNAME_EN) %>%
   addControl("Visited/resided buildings of probable/confirmed COVID-19 cases in the past 14 days", position = "topright") %>%
   addControl('<a href = "https://geodata.gov.hk/gs/view-dataset?uuid=ab290617-f93b-416e-a00d-114566a7783a&sidx=0">Data source</a>',
              position = "bottomleft")
@@ -47,18 +56,28 @@ covid_map1
 
 ## Points as circles
 
-It might look cleaner to show the points as little circles.
+It might look cleaner to show the points as little circles. I have learned how to cluster points from Jiwon.
 ```{r}
-covid_map2 <- leaflet(covid,
+pal <- colorNumeric(
+  palette = "YlOrRd",
+  domain = districts$pop_density)
+
+covid_map2 <- leaflet(districts,
                       options = leafletOptions(minZoom = 11, maxZoom = 15)) %>%
   addProviderTiles("Esri.WorldGrayCanvas") %>%
-  addCircles(fillColor = "red", color = "red",
-             stroke = FALSE, radius = 200,
-             highlightOptions = highlightOptions(fillColor = "hotpink",
-                                                 fillOpacity = 1),
+  addPolygons(color = ~pal(pop_density), stroke = FALSE, fillOpacity = 0.3, 
+              highlightOptions = highlightOptions(fillColor = "black", fillOpacity = 0.5),
+              label = districts$HKDistri_1,
+              popup = paste("Population Density: ", format(districts$pop_density, big.mark = ","), "persons per sq.km")) %>%
+  
+  addCircleMarkers(data =covid,
+             fillColor = "red", color = "red",
+             stroke = FALSE, radius = 20,
              label = "COVID-19 has been here",
              popup = paste("Building Name: ", covid$BLDGNAME_EN, "<br/>",
-                           "Related Case Number: ", covid$RELATEDCASESNO)) %>%
+                           "Related Case Number: ", covid$RELATEDCASESNO),
+             clusterOptions = markerClusterOptions()) %>%
+  
   setMaxBounds(lng1 = 113,
                lat1 = 22,
                lng2 = 115,
